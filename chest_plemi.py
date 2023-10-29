@@ -246,10 +246,13 @@ optimizer = torch.optim.RMSprop(model.parameters(),lr = learning_rate, momentum=
 
 
 #%% Train 
-
-start = time.time()
+#%%
+import tqdm
 
 # Train
+
+def get_loss_percent(loss):
+    return loss.item() * 100
 
 start = time.time()
 
@@ -261,9 +264,10 @@ use_gpu = True
 total_step = len(trainloader)
 
 for epoch in range(num_epochs):
-    for i, (images, labels) in enumerate(trainloader):
+    pbar = tqdm.tqdm(trainloader, total=total_step)
+    for i, (images, labels) in enumerate(pbar):
         # Giriş verilerinizi GPU'ya taşıyın
-        images = images.to(device,dtype=torch.float32)
+        images = images.to(device, dtype=torch.float32)
 
         outputs = model(images)
 
@@ -277,46 +281,50 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
-        if i % 2 == 0:
-            print("epoch: {} {}/{}".format(epoch,i,total_step))
+        pbar.set_description("epoch: {} {}/{}".format(epoch, i, total_step))
+        pbar.update(1)
 
-    # train
+    # train accuracy
     correct = 0
     total = 0
     with torch.no_grad():
         for data in trainloader:
             images, labels = data
-            images = images.to(device,dtype=torch.float32)
+            images = images.to(device, dtype=torch.float32)
 
             outputs = model(images)
-            _, predicted = torch.max(outputs.data,1)
+            _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    print("Accuracy train %d %%"%(100*correct/total))
-    train_acc.append(100*correct/total)
 
-    # test
+        train_acc.append(100 * correct / total)
+
+    # test accuracy
     correct = 0
     total = 0
     with torch.no_grad():
         for data in testloader:
             images, labels = data
-            images = images.to(device,dtype=torch.float32)
+            images = images.to(device, dtype=torch.float32)
 
             outputs = model(images)
-            _, predicted = torch.max(outputs.data,1)
+            _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    print("Accuracy test %d %%"%(100*correct/total))
-    test_acc.append(100*correct/total)
 
-print("Train is Done !")
+        test_acc.append(100 * correct / total)
 
-         
-        
+    # Loss değerini % olarak yazdırma
+    loss_percent = get_loss_percent(loss)
+
+    # Test doğruluğunu % ile birlikte yazdırma
+    print(f"epoch: {epoch} | train accuracy: {train_acc[-1]:.2f} % | loss: {loss_percent:.2f} % | test accuracy: {test_acc[-1]:.2f} %")
+
+print("Train is Done!")
+
 end = time.time()
-process_time = (end - start)/60
-print("process time:",process_time)
+process_time = (end - start) / 60
+print("process time:", process_time)
 
         
 #%% Saving Model
